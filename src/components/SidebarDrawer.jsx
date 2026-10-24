@@ -59,123 +59,126 @@ export const SidebarDrawer = ({
         aria-hidden="true"
       />
 
-      {/* Drawer content: strictly 100dvh with full scrollability */}
-      <div className="relative w-[310px] max-w-[85vw] bg-white h-[100dvh] shadow-2xl flex flex-col z-10 border-r border-zinc-200 overflow-hidden">
-        {/* Pinned Top Header with Logo and Close [X] Button */}
-        <div className="shrink-0 p-4 border-b border-zinc-100 bg-white">
-          <div className="flex items-center justify-between mb-2">
-            <StephensonLogo className="h-7 w-auto" />
+      {/* Drawer content: structured, white-based, clean layout */}
+      <div className="relative w-[300px] max-w-[85vw] bg-white h-[100dvh] shadow-2xl flex flex-col z-10 border-r border-zinc-200 overflow-hidden">
+        {/* Pinned Header: Logo & Close [X] */}
+        <div className="shrink-0 px-4 py-3 border-b border-zinc-100 bg-white">
+          <div className="flex items-center justify-between">
+            <StephensonLogo className="h-6 w-auto" />
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 active:bg-zinc-100 transition-colors"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-800 active:bg-zinc-100 transition-colors"
               aria-label="Close menu"
             >
-              <X className="w-5 h-5 stroke-[2.2]" />
+              <X className="w-4 h-4 stroke-[2.2]" />
             </button>
           </div>
-
-          <div className="text-[11px] text-zinc-500 font-medium">
-            Automotive & Commercial Equipment Specialists Since 1984
+          <div className="text-[10.5px] text-zinc-400 font-medium mt-1">
+            Inspection & Lifting Safety Management
           </div>
         </div>
 
-        {/* Fully scrollable drawer body */}
-        <div
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-        >
-          {/* User profile snippet */}
-          <div className="p-4 bg-zinc-900 text-white flex items-center gap-3 shrink-0">
-            <div className="w-11 h-11 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
+        {/* Compact, Structured User Profile Snippet */}
+        <div className="shrink-0 px-4 py-2 bg-zinc-50/80 border-b border-zinc-100 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative shrink-0">
               <img
                 src={CURRENT_USER.avatarUrl}
                 alt={CURRENT_USER.name}
-                className="w-full h-full object-cover"
+                className="w-8 h-8 rounded-full object-cover border border-zinc-200"
               />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm truncate">{CURRENT_USER.name}</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold text-xs text-zinc-900 truncate">{CURRENT_USER.name}</span>
+                <span className="text-[10px] text-zinc-400 font-medium">#{CURRENT_USER.techId}</span>
               </div>
-              <div className="text-xs text-zinc-400 truncate">{CURRENT_USER.role}</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Tech ID #{CURRENT_USER.techId}</div>
+              <div className="text-[10.5px] text-zinc-500 truncate leading-tight">
+                {CURRENT_USER.role}
+              </div>
             </div>
           </div>
 
-          {/* Branch pill selector */}
-          <div className="px-4 py-2.5 bg-zinc-100 border-b border-zinc-200/80 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-1.5 text-xs text-zinc-600">
-              <MapPin className="w-3.5 h-3.5 text-[#e01f1a]" />
-              <span className="font-semibold text-zinc-800">{activeBranch}</span>
-            </div>
-            <button
-              onClick={() => {
-                const newBranch = activeBranch.includes('Winnipeg') ? 'Regina Branch' : 'Winnipeg Branch';
-                if (onSelectBranch) onSelectBranch(newBranch);
-              }}
-              className="text-[11px] text-[#e01f1a] font-bold hover:underline"
-            >
-              Switch
-            </button>
+          <div className="shrink-0 pl-1.5">
+            <span className="text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Active
+            </span>
           </div>
+        </div>
 
-          {/* Navigation list: all 9 items */}
-          <div className="py-2 px-2 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isSelected = activeDestination === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleItemClick(item)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-red-50 text-[#e01f1a] font-semibold'
-                      : 'text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon
-                      className={`w-5 h-5 ${
-                        isSelected ? 'text-[#e01f1a] stroke-[2.2]' : 'text-zinc-500 stroke-[1.8]'
-                      }`}
-                    />
-                    <span>{item.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.badge && item.badge > 0 ? (
-                      <span className="min-w-[18px] h-[18px] bg-[#e01f1a] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                    <ChevronRight className="w-4 h-4 text-zinc-300" />
-                  </div>
-                </button>
-              );
-            })}
+        {/* Compact Branch Selector Strip */}
+        <div className="shrink-0 px-4 py-1.5 bg-white border-b border-zinc-100 flex items-center justify-between text-xs text-zinc-600">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-3 h-3 text-[#e01f1a]" />
+            <span className="font-semibold text-zinc-800 text-[11px]">{activeBranch}</span>
           </div>
-
-          {/* Spacer to push footer down if content is shorter than screen */}
-          <div className="flex-1 min-h-4" />
-
-          {/* Footer info: scrolls naturally with comfortable bottom safe-area padding */}
-          <div
-            className="p-3.5 border-t border-zinc-200 bg-zinc-50 text-xs text-zinc-500 flex items-center justify-between shrink-0 mt-auto"
-            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 16px))' }}
+          <button
+            onClick={() => {
+              const newBranch = activeBranch.includes('Winnipeg') ? 'Regina Branch' : 'Winnipeg Branch';
+              if (onSelectBranch) onSelectBranch(newBranch);
+            }}
+            className="text-[10.5px] text-[#e01f1a] font-bold hover:underline"
           >
-            <span>Stephenson App v2.4.0</span>
-            <a
-              href="https://stephensonequipment.ca"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-zinc-600 hover:text-[#e01f1a]"
-            >
-              <span>stephensonequipment.ca</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+            Switch
+          </button>
+        </div>
+
+        {/* Navigation list */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-2 px-2 space-y-0.5"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isSelected = activeDestination === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  isSelected
+                    ? 'bg-red-50 text-[#e01f1a] font-semibold'
+                    : 'text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Icon
+                    className={`w-4 h-4 ${
+                      isSelected ? 'text-[#e01f1a] stroke-[2.2]' : 'text-zinc-500 stroke-[1.8]'
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {item.badge && item.badge > 0 ? (
+                    <span className="min-w-[17px] h-[17px] bg-[#e01f1a] text-white text-[9.5px] font-bold rounded-full flex items-center justify-center px-1">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-300" />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Footer info at the bottom */}
+        <div
+          className="shrink-0 p-3 border-t border-zinc-100 bg-zinc-50/70 text-[11px] text-zinc-500 flex items-center justify-between"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 12px))' }}
+        >
+          <span>Stephenson App v2.4.0</span>
+          <a
+            href="https://stephensonequipment.ca"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-zinc-600 hover:text-[#e01f1a]"
+          >
+            <span>stephensonequipment.ca</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </div>
     </div>
