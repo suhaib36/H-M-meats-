@@ -1,327 +1,522 @@
-import React, { useState } from 'react';
-import { TopBar } from './components/TopBar';
-import { BottomNav } from './components/BottomNav';
-import { SidebarDrawer } from './components/SidebarDrawer';
-import { HomeView } from './views/HomeView';
-import { EquipmentView } from './views/EquipmentView';
-import { InspectView } from './views/InspectView';
-import { IssuesView } from './views/IssuesView';
-import { MoreView } from './views/MoreView';
-
+import React, { useState, useEffect } from 'react';
 import {
-  ALL_EQUIPMENT,
-  INITIAL_DRAFTS,
-  INITIAL_ISSUES,
-  INITIAL_MAINTENANCE,
-  INITIAL_REPORTS,
+  BUSINESS_INFO,
+  INITIAL_MENU_ITEMS,
+  INITIAL_REQUESTS,
+  INITIAL_ORDERS,
   INITIAL_NOTIFICATIONS
-} from './data/mockData';
+} from './data/initialData';
 
-export function App() {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState('home'); // 'home' | 'equipment' | 'inspect' | 'issues' | 'more'
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [moreSubScreen, setMoreSubScreen] = useState(null);
+import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
+import { NotificationDrawer } from './components/NotificationDrawer';
+import { ToastContainer } from './components/Toast';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
-  // Application Data State
-  const [activeBranch, setActiveBranch] = useState('Winnipeg Branch');
-  const [equipmentList, setEquipmentList] = useState(ALL_EQUIPMENT);
-  const [draftsList, setDraftsList] = useState(INITIAL_DRAFTS);
-  const [issuesList, setIssuesList] = useState(INITIAL_ISSUES);
-  const [maintenanceList, setMaintenanceList] = useState(INITIAL_MAINTENANCE);
-  const [reportsList, setReportsList] = useState(INITIAL_REPORTS);
-  const [notificationsList, setNotificationsList] = useState(INITIAL_NOTIFICATIONS);
+import { DashboardView } from './views/DashboardView';
+import { RequestsView } from './views/RequestsView';
+import { RequestDetailModal } from './views/RequestDetailModal';
+import { QuotationModal } from './views/QuotationModal';
+import { NewRequestModal } from './views/NewRequestModal';
+import { OrdersView } from './views/OrdersView';
+import { CalendarView } from './views/CalendarView';
+import { MenuPackagesView } from './views/MenuPackagesView';
+import { DemoWalkthroughModal } from './views/DemoWalkthroughModal';
 
-  // Active selections
-  const [selectedEquipment, setSelectedEquipment] = useState(null);
-  const [selectedIssue, setSelectedIssue] = useState(null);
-  const [preselectedEquipmentForInspect, setPreselectedEquipmentForInspect] = useState(null);
+export default function App() {
+  // Navigation & UI state
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
 
-  // Feedback Toast
-  const [toastMessage, setToastMessage] = useState(null);
+  // Active Modals & Selection
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [quotationPreviewRequest, setQuotationPreviewRequest] = useState(null);
+  const [selectedOrderForDetail, setSelectedOrderForDetail] = useState(null);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
+  // Confirmation dialog state
+  const [confirmState, setConfirmState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    isDestructive: true,
+    onConfirm: () => {}
+  });
+
+  // Toasts
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, title = '', type = 'success') => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, title, message, type }]);
     setTimeout(() => {
-      setToastMessage(null);
-    }, 2800);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4500);
   };
 
-  // Unread notifications count
-  const unreadNotificationsCount = notificationsList.filter((n) => !n.read).length;
-  // Open issues count
-  const openIssuesCount = issuesList.filter((i) => i.status !== 'Resolved').length;
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
-  // Screen Title Mapper
-  const getScreenTitle = () => {
-    switch (activeTab) {
-      case 'home':
-        return 'Stephenson Equipment';
-      case 'equipment':
-        return selectedEquipment ? selectedEquipment.assetTag : 'Equipment Assets';
-      case 'inspect':
-        return 'Inspection Manager';
-      case 'issues':
-        return selectedIssue ? selectedIssue.assetTag : 'Defects & Issues';
-      case 'more':
-        return 'More Options';
-      default:
-        return 'Stephenson Equipment';
+  // Persistent Client State (LocalStorage)
+  const [requests, setRequests] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hm_catering_requests');
+      return saved ? JSON.parse(saved) : INITIAL_REQUESTS;
+    } catch {
+      return INITIAL_REQUESTS;
     }
-  };
+  });
 
-  // Start Inspection CTA handler
-  const handleStartInspection = (equipment = null) => {
-    if (equipment) {
-      setPreselectedEquipmentForInspect(equipment);
-      setSelectedEquipment(null);
-    } else {
-      setPreselectedEquipmentForInspect(null);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hm_catering_orders');
+      return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+    } catch {
+      return INITIAL_ORDERS;
     }
-    setActiveTab('inspect');
+  });
+
+  const [menuItems, setMenuItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hm_catering_menu');
+      return saved ? JSON.parse(saved) : INITIAL_MENU_ITEMS;
+    } catch {
+      return INITIAL_MENU_ITEMS;
+    }
+  });
+
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hm_catering_notifications');
+      return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
+    } catch {
+      return INITIAL_NOTIFICATIONS;
+    }
+  });
+
+  // Save changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('hm_catering_requests', JSON.stringify(requests));
+  }, [requests]);
+
+  useEffect(() => {
+    localStorage.setItem('hm_catering_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('hm_catering_menu', JSON.stringify(menuItems));
+  }, [menuItems]);
+
+  useEffect(() => {
+    localStorage.setItem('hm_catering_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  // Request Actions
+  const handleSaveRequest = (updatedRequest) => {
+    setRequests((prev) =>
+      prev.map((r) => (r.id === updatedRequest.id ? updatedRequest : r))
+    );
+    setSelectedRequest(null);
+    addToast(
+      `Catering request for ${updatedRequest.customerName} updated successfully.`,
+      'Changes Saved',
+      'success'
+    );
   };
 
-  // Save Draft (Save, Switch & Resume feature)
-  const handleSaveDraft = (draftPayload) => {
-    setDraftsList((prev) => {
-      const idx = prev.findIndex((d) => d.id === draftPayload.id || d.hoistId === draftPayload.hoistId);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = draftPayload;
-        return copy;
+  const handleCreateNewRequest = (newRequest) => {
+    setRequests((prev) => [newRequest, ...prev]);
+    addToast(
+      `Inquiry ${newRequest.id} for ${newRequest.customerName} recorded.`,
+      'New Request Created',
+      'success'
+    );
+  };
+
+  const handleOpenQuotationPreview = (req) => {
+    setQuotationPreviewRequest(req);
+  };
+
+  const handleSendQuote = (requestId) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    setRequests((prev) =>
+      prev.map((r) => {
+        if (r.id === requestId) {
+          return {
+            ...r,
+            status: 'Quote Sent',
+            quoteSentDate: todayStr
+          };
+        }
+        return r;
+      })
+    );
+    if (selectedRequest && selectedRequest.id === requestId) {
+      setSelectedRequest((prev) => ({
+        ...prev,
+        status: 'Quote Sent',
+        quoteSentDate: todayStr
+      }));
+    }
+    setQuotationPreviewRequest(null);
+    addToast(
+      `Estimate delivered to customer. Status transitioned to Quote Sent.`,
+      'Quotation Sent',
+      'success'
+    );
+  };
+
+  // Marking a request as Confirmed -> automatically generates an Order!
+  const handleMarkConfirmed = (req) => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Confirm Event & Book Order?',
+      message: `Are you sure you want to confirm ${req.customerName}'s event for ${req.eventDate}? This will generate a kitchen order and reserve smoker capacity.`,
+      confirmLabel: 'Confirm & Create Order',
+      isDestructive: false,
+      onConfirm: () => {
+        const orderNumber = `ORD-2026-${req.id.replace('REQ-2026-', '')}`;
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // Format menu items for order
+        const orderItems = (req.selectedItems || []).map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+          total: Number(i.quantity) * Number(i.price)
+        }));
+
+        const newOrder = {
+          id: orderNumber,
+          orderNumber,
+          requestId: req.id,
+          customerName: req.customerName,
+          organization: req.organization,
+          email: req.email,
+          phone: req.phone,
+          eventType: req.eventType,
+          eventDate: req.eventDate,
+          preferredTime: req.preferredTime,
+          guestCount: req.guestCount,
+          venueAddress: req.venueAddress,
+          subtotal: req.subtotal || 0,
+          deliveryFee: req.deliveryFee || 0,
+          staffingFee: req.staffingFee || 0,
+          taxRate: req.taxRate || BUSINESS_INFO.taxRate,
+          taxAmount: req.taxAmount || 0,
+          totalValue: req.totalValue || req.estimatedBudget || 0,
+          preparationStatus: 'Not Started',
+          paymentStatus: 'Deposit Received',
+          dateConfirmed: todayStr,
+          items: orderItems,
+          dietaryNotes: req.dietaryNotes,
+          specialInstructions: req.specialInstructions,
+          kitchenChecklist: [
+            { step: 'Order verified & meat cuts reserved in walk-in cooler', done: true },
+            { step: 'Schedule pitmaster smoking shift & wood restock', done: false },
+            { step: 'Sides & sauce prep underway', done: false },
+            { step: 'Load catering hot boxes & chafers for delivery', done: false }
+          ],
+          notes: `Confirmed from request ${req.id} on ${todayStr}.`
+        };
+
+        // Update request status
+        setRequests((prev) =>
+          prev.map((r) => (r.id === req.id ? { ...r, status: 'Confirmed', confirmedDate: todayStr } : r))
+        );
+
+        // Add or replace in orders
+        setOrders((prev) => {
+          const exists = prev.some((o) => o.orderNumber === orderNumber);
+          return exists ? prev.map((o) => (o.orderNumber === orderNumber ? newOrder : o)) : [newOrder, ...prev];
+        });
+
+        setSelectedRequest(null);
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+
+        addToast(
+          `Event confirmed! Order ${orderNumber} created with Deposit Received status.`,
+          'Order Confirmed',
+          'success'
+        );
       }
-      return [draftPayload, ...prev];
     });
+  };
 
-    // Update equipment status to 'In Progress'
-    setEquipmentList((prev) =>
-      prev.map((eq) =>
-        eq.id === draftPayload.hoistId ? { ...eq, status: 'In Progress' } : eq
-      )
+  const handleCancelRequest = (requestId) => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Decline Catering Request?',
+      message: 'Are you sure you want to decline this inquiry? The customer status will be set to Declined.',
+      confirmLabel: 'Decline Request',
+      isDestructive: true,
+      onConfirm: () => {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === requestId ? { ...r, status: 'Declined' } : r))
+        );
+        setSelectedRequest(null);
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        addToast('Request status updated to Declined.', 'Request Cancelled', 'error');
+      }
+    });
+  };
+
+  // Orders Actions
+  const handleUpdateOrderStatus = (orderId, updates) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o))
     );
-
-    showToast(`Draft for ${draftPayload.hoistNumber || draftPayload.assetTag} saved successfully.`);
+    addToast('Order status updated.', 'Order Updated', 'success');
   };
 
-  // Delete Draft
-  const handleDeleteDraft = (draftId) => {
-    setDraftsList((prev) => prev.filter((d) => d.id !== draftId));
-    showToast('Draft deleted.');
-  };
-
-  // Submit Inspection
-  const handleSubmitInspection = (reportData, completedDraftId) => {
-    // Add to reports list
-    setReportsList((prev) => [reportData, ...prev]);
-
-    // Remove draft if existed
-    if (completedDraftId) {
-      setDraftsList((prev) => prev.filter((d) => d.id !== completedDraftId));
-    }
-
-    // Update equipment status to 'Inspected'
-    setEquipmentList((prev) =>
-      prev.map((eq) =>
-        eq.id === reportData.assetId || eq.assetTag === reportData.assetTag
-          ? {
-              ...eq,
-              status: reportData.failCount > 0 ? 'Attention' : 'Inspected',
-              lastInspected: reportData.date
-            }
-          : eq
-      )
-    );
-
-    showToast(`Inspection submitted and sent to ${reportData.branch} operations.`);
-  };
-
-  // Update Issue
-  const handleUpdateIssue = (updatedIssue) => {
-    setIssuesList((prev) =>
-      prev.map((item) => (item.id === updatedIssue.id ? updatedIssue : item))
-    );
-    setSelectedIssue(updatedIssue);
-    showToast(`Issue ${updatedIssue.id} updated (${updatedIssue.status}).`);
-  };
-
-  // Notifications
-  const handleMarkNotificationRead = (notifId) => {
-    setNotificationsList((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
+  const handleUpdateOrderChecklist = (orderId, stepIdx) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          const updatedChecklist = [...o.kitchenChecklist];
+          updatedChecklist[stepIdx] = {
+            ...updatedChecklist[stepIdx],
+            done: !updatedChecklist[stepIdx].done
+          };
+          return { ...o, kitchenChecklist: updatedChecklist };
+        }
+        return o;
+      })
     );
   };
 
-  const handleMarkAllNotificationsRead = () => {
-    setNotificationsList((prev) => prev.map((n) => ({ ...n, read: true })));
-    showToast('All notifications marked as read.');
+  // Menu Actions
+  const handleAddMenuItem = (newItem) => {
+    setMenuItems((prev) => [newItem, ...prev]);
+    addToast(`${newItem.name} added to catering menu.`, 'Menu Item Added', 'success');
   };
 
-  // Sidebar navigation handler
-  const handleSidebarNavigate = (tab, subScreen = null) => {
-    setActiveTab(tab);
-    if (tab === 'more') {
-      setMoreSubScreen(subScreen);
+  const handleUpdateMenuItem = (updatedItem) => {
+    setMenuItems((prev) =>
+      prev.map((m) => (m.id === updatedItem.id ? updatedItem : m))
+    );
+    addToast(`${updatedItem.name} updated.`, 'Menu Item Updated', 'success');
+  };
+
+  const handleToggleActiveItem = (itemId) => {
+    setMenuItems((prev) =>
+      prev.map((m) => (m.id === itemId ? { ...m, active: !m.active } : m))
+    );
+  };
+
+  // Reset Data to Pristine State
+  const handleResetData = () => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Reset Demo Data to Initial State?',
+      message: 'This will restore all sample inquiries, confirmed orders, and menu items to their original demonstration state.',
+      confirmLabel: 'Reset Data',
+      isDestructive: true,
+      onConfirm: () => {
+        localStorage.removeItem('hm_catering_requests');
+        localStorage.removeItem('hm_catering_orders');
+        localStorage.removeItem('hm_catering_menu');
+        localStorage.removeItem('hm_catering_notifications');
+
+        setRequests(INITIAL_REQUESTS);
+        setOrders(INITIAL_ORDERS);
+        setMenuItems(INITIAL_MENU_ITEMS);
+        setNotifications(INITIAL_NOTIFICATIONS);
+
+        setConfirmState((prev) => ({ ...prev, isOpen: false }));
+        addToast('Sample data reset to original demo state.', 'System Reset', 'success');
+      }
+    });
+  };
+
+  // 100-Guest Demo Scenario Shortcuts
+  const demoTargetRequest = requests.find((r) => r.id === 'REQ-2026-042') || requests[0];
+
+  const handleOpenDemoRequest = (openQuoteDirectly = false) => {
+    if (openQuoteDirectly) {
+      setQuotationPreviewRequest(demoTargetRequest);
     } else {
-      setMoreSubScreen(null);
+      setSelectedRequest(demoTargetRequest);
     }
-    setSelectedEquipment(null);
-    setSelectedIssue(null);
+  };
+
+  const handleDismissNotification = (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] bg-white flex justify-center overflow-hidden selection:bg-[#e01f1a] selection:text-white">
-      {/* 
-        Solid Mobile App Layout Container:
-        - Viewport height strictly 100dvh, overflow-hidden.
-        - Pinned TopBar at the top (shrink-0).
-        - Pinned BottomNav at the bottom (shrink-0) - permanently visible, never hides before or during scroll.
-        - Scrollable main content viewport (flex-1 overflow-y-auto overscroll-contain).
-      */}
-      <div className="w-full max-w-md h-full bg-white flex flex-col relative border-x border-zinc-200/60 shadow-xs overflow-hidden">
-        {/* Pinned Top Bar Header */}
-        <TopBar
-          title={getScreenTitle()}
-          onOpenSidebar={() => setIsSidebarOpen(true)}
-          unreadNotificationsCount={unreadNotificationsCount}
-          onNotificationClick={() => {
-            setActiveTab('more');
-            setMoreSubScreen('notifications');
-          }}
+    <div className="app-layout">
+      {/* Sidebar Navigation */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileMenuOpen}
+        setMobileOpen={setMobileMenuOpen}
+        requestsCount={requests.filter((r) => r.status === 'New' || r.status === 'Reviewing').length}
+        activeOrdersCount={orders.filter((o) => o.preparationStatus !== 'Completed').length}
+        onOpenNewRequest={() => setIsNewRequestModalOpen(true)}
+        onStartDemo={() => setIsDemoModalOpen(true)}
+      />
+
+      {/* Main Viewport */}
+      <div className="main-viewport">
+        {/* App Header */}
+        <Header
+          activeTab={activeTab}
+          onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+          notifications={notifications}
+          onOpenNotifications={() => setIsNotificationOpen(true)}
+          onStartDemo={() => setIsDemoModalOpen(true)}
+          onResetData={handleResetData}
         />
 
-        {/* Global Toast Notification */}
-        {toastMessage && (
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-semibold shadow-lg animate-fadeIn flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#e01f1a]" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
-
-        {/* Slide-out Left Sidebar Drawer */}
-        <SidebarDrawer
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          activeDestination={activeTab}
-          onNavigate={handleSidebarNavigate}
-          activeBranch={activeBranch}
-          onSelectBranch={(branch) => {
-            setActiveBranch(branch);
-            showToast(`Active facility changed to ${branch}`);
-          }}
-          unreadNotificationsCount={unreadNotificationsCount}
-          openIssuesCount={openIssuesCount}
-        />
-
-        {/* Scrollable Main Content Viewport */}
-        <main className="flex-1 w-full bg-white overflow-y-auto overscroll-contain">
-          {/* TAB 1: HOME DASHBOARD */}
-          {activeTab === 'home' && (
-            <HomeView
-              onStartInspection={() => handleStartInspection(null)}
-              onNavigateToIssues={() => {
-                setActiveTab('issues');
-                setSelectedIssue(null);
+        {/* Scrollable View Content */}
+        <main className="content-scrollable">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              requests={requests}
+              orders={orders}
+              notifications={notifications}
+              onOpenRequest={(req) => setSelectedRequest(req)}
+              onOpenOrder={(ord) => {
+                setSelectedOrderForDetail(ord);
+                setActiveTab('orders');
               }}
-              onNavigateToEquipment={() => {
-                setActiveTab('equipment');
-                setSelectedEquipment(null);
-              }}
-              onNavigateToMaintenance={() => {
-                setActiveTab('more');
-                setMoreSubScreen('maintenance');
-              }}
-              onSelectIssue={(issue) => {
-                setSelectedIssue(issue);
-                setActiveTab('issues');
-              }}
-              issuesList={issuesList}
-              maintenanceList={maintenanceList}
-              activeBranch={activeBranch}
+              onOpenNewRequest={() => setIsNewRequestModalOpen(true)}
+              onStartDemo={() => setIsDemoModalOpen(true)}
+              onNavigateTab={(tab) => setActiveTab(tab)}
             />
           )}
 
-          {/* TAB 2: EQUIPMENT & HOISTS */}
-          {activeTab === 'equipment' && (
-            <EquipmentView
-              equipmentList={equipmentList}
-              selectedEquipment={selectedEquipment}
-              onSelectEquipment={(eq) => setSelectedEquipment(eq)}
-              onCloseEquipmentDetail={() => setSelectedEquipment(null)}
-              onStartInspection={(eq) => handleStartInspection(eq)}
+          {activeTab === 'requests' && (
+            <RequestsView
+              requests={requests}
+              onOpenRequest={(req) => setSelectedRequest(req)}
+              onOpenNewRequest={() => setIsNewRequestModalOpen(true)}
+              onOpenQuotationPreview={(req) => setQuotationPreviewRequest(req)}
+              onMarkConfirmed={(req) => handleMarkConfirmed(req)}
             />
           )}
 
-          {/* TAB 3: INSPECT & DRAFTS */}
-          {activeTab === 'inspect' && (
-            <InspectView
-              equipmentList={equipmentList}
-              draftsList={draftsList}
-              onSaveDraft={handleSaveDraft}
-              onDeleteDraft={handleDeleteDraft}
-              onSubmitInspection={handleSubmitInspection}
-              preselectedEquipment={preselectedEquipmentForInspect}
-              onClearPreselected={() => setPreselectedEquipmentForInspect(null)}
-              onNavigateToReports={() => {
-                setActiveTab('more');
-                setMoreSubScreen('reports');
+          {activeTab === 'orders' && (
+            <OrdersView
+              orders={orders}
+              selectedOrder={selectedOrderForDetail}
+              setSelectedOrder={setSelectedOrderForDetail}
+              onUpdateOrderStatus={handleUpdateOrderStatus}
+              onUpdateOrderChecklist={handleUpdateOrderChecklist}
+            />
+          )}
+
+          {activeTab === 'calendar' && (
+            <CalendarView
+              requests={requests}
+              orders={orders}
+              onOpenRequest={(req) => setSelectedRequest(req)}
+              onOpenOrder={(ord) => {
+                setSelectedOrderForDetail(ord);
+                setActiveTab('orders');
               }}
             />
           )}
 
-          {/* TAB 4: ISSUES & DEFECTS */}
-          {activeTab === 'issues' && (
-            <IssuesView
-              issuesList={issuesList}
-              onUpdateIssue={handleUpdateIssue}
-              selectedIssue={selectedIssue}
-              onSelectIssue={(iss) => setSelectedIssue(iss)}
-              onCloseDetail={() => setSelectedIssue(null)}
-            />
-          )}
-
-          {/* TAB 5: MORE OPTIONS */}
-          {activeTab === 'more' && (
-            <MoreView
-              initialSubScreen={moreSubScreen}
-              maintenanceList={maintenanceList}
-              reportsList={reportsList}
-              notificationsList={notificationsList}
-              activeBranch={activeBranch}
-              onSelectBranch={(branch) => {
-                setActiveBranch(branch);
-                showToast(`Facility updated to ${branch}`);
-              }}
-              onNavigateToTab={(tab, targetId) => {
-                setActiveTab(tab);
-                setMoreSubScreen(null);
-                if (tab === 'issues' && targetId) {
-                  const found = issuesList.find((i) => i.id === targetId);
-                  if (found) setSelectedIssue(found);
-                } else if (tab === 'equipment' && targetId) {
-                  const found = equipmentList.find((e) => e.id === targetId || e.assetTag === targetId);
-                  if (found) setSelectedEquipment(found);
-                }
-              }}
-              onMarkNotificationRead={handleMarkNotificationRead}
-              onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          {activeTab === 'menu' && (
+            <MenuPackagesView
+              menuItems={menuItems}
+              onAddMenuItem={handleAddMenuItem}
+              onUpdateMenuItem={handleUpdateMenuItem}
+              onToggleActiveItem={handleToggleActiveItem}
+              onResetMenu={handleResetData}
             />
           )}
         </main>
-
-        {/* Pinned Bottom Navigation: NEVER HIDES */}
-        <BottomNav
-          activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            setMoreSubScreen(null);
-            setSelectedEquipment(null);
-            setSelectedIssue(null);
-          }}
-          openIssuesCount={openIssuesCount}
-        />
       </div>
+
+      {/* Modals & Overlays */}
+      {/* 1. Request Details & Quotation Builder */}
+      {selectedRequest && (
+        <RequestDetailModal
+          isOpen={Boolean(selectedRequest)}
+          onClose={() => setSelectedRequest(null)}
+          request={selectedRequest}
+          menuItems={menuItems}
+          onSaveRequest={handleSaveRequest}
+          onOpenQuotationPreview={(req) => setQuotationPreviewRequest(req)}
+          onMarkConfirmed={(req) => handleMarkConfirmed(req)}
+          onCancelRequest={(id) => handleCancelRequest(id)}
+        />
+      )}
+
+      {/* 2. Official Quotation Preview */}
+      {quotationPreviewRequest && (
+        <QuotationModal
+          isOpen={Boolean(quotationPreviewRequest)}
+          onClose={() => setQuotationPreviewRequest(null)}
+          request={quotationPreviewRequest}
+          onSendQuote={handleSendQuote}
+          onCopyQuote={() => addToast('Quotation text copied to clipboard.', 'Copied', 'success')}
+        />
+      )}
+
+      {/* 3. New Request Modal */}
+      <NewRequestModal
+        isOpen={isNewRequestModalOpen}
+        onClose={() => setIsNewRequestModalOpen(false)}
+        onSubmitNewRequest={handleCreateNewRequest}
+        menuItems={menuItems}
+      />
+
+      {/* 4. Sales Demo Walkthrough Modal */}
+      <DemoWalkthroughModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        demoRequest={demoTargetRequest}
+        onOpenDemoRequest={handleOpenDemoRequest}
+        onSimulateQuoteSent={(id) => handleSendQuote(id)}
+        onSimulateConfirmOrder={(req) => handleMarkConfirmed(req)}
+        onGoToOrders={() => setActiveTab('orders')}
+        onGoToCalendar={() => setActiveTab('calendar')}
+      />
+
+      {/* 5. Notification Drawer */}
+      <NotificationDrawer
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        notifications={notifications}
+        onSelectRequest={(reqId) => {
+          const req = requests.find((r) => r.id === reqId);
+          if (req) setSelectedRequest(req);
+        }}
+        onSelectOrder={(ordId) => {
+          const ord = orders.find((o) => o.id === ordId);
+          if (ord) {
+            setSelectedOrderForDetail(ord);
+            setActiveTab('orders');
+          }
+        }}
+        onDismissNotification={handleDismissNotification}
+      />
+
+      {/* 6. Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        isDestructive={confirmState.isDestructive}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* 7. Toast Alerts Container */}
+      <ToastContainer toasts={toasts} onCloseToast={removeToast} />
     </div>
   );
 }
-
-export default App;

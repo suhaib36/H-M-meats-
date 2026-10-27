@@ -1,8 +1,9 @@
 {
-  "name": "stephenson-equipment-mobile",
-  "version": "2.4.0",
+  "name": "hm-catering-order-manager",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
+  "description": "H&M Catering Order Manager for H&M Meats & Catering (Nampa, ID)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
